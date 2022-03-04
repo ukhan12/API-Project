@@ -191,6 +191,25 @@ function setSrc(str){
   iframeElement.src = playlist[str]
 }
 
+//let str = data.category
+
+function setSrc(str){
+  const iframeElement = document.getElementById('player')
+  const playlist = {
+    Beef: "https://open.spotify.com/embed/album/4YTduhQWfS0pOzQC4o0HcG?si=-lIp67kXTMSUnHbJ6iUxDg",
+    Seafood: "https://open.spotify.com/embed/album/4aAwvCRNJIqiUGVEjieWv6",
+    Chicken: "https://open.spotify.com/embed/playlist/77FYGIlUZbWYMuuSPjILOX?si=0ded90b08d524505",
+    Dessert: "https://open.spotify.com/embed/album/6qqa1vvE1Q3qj2k8Gc3iEY?si=Pem3lND_Q4K4ZfjKIKS24Q",
+    Lamb: "https://open.spotify.com/embed/playlist/37i9dQZF1DZ06evO3MFmq4?si=06d62a85fde248fc",
+    Pasta: "https://open.spotify.com/embed/playlist/6xL6K3EBL24rF6bHy2PtRW?si=835e542f386145d9",
+    Pork: "https://open.spotify.com/embed/playlist/599a2pgUrtBBkAZdS3IKWS?si=a7a5856b0d434b5e",
+    Starter: "https://open.spotify.com/embed/playlist/4fBV2fjgpUw4n9bYLElwAl?si=2bda823ceb6c43fc",
+    Vegan: "https://open.spotify.com/embed/playlist/00i0kAaHuI8C0v6J9mhxbY?si=5ddc5ee398254382",
+    Vegetarian: "https://open.spotify.com/embed/playlist/3WmcKgX83LRqQVTSTkYY6f?si=84374a3106df4601",
+    Breakfast: "https://open.spotify.com/embed/playlist/7JHC5iBWrzAloy65eYLVCd?si=5664354991154237"
+  }
+  iframeElement.src = playlist[str]
+}
 
 
 //page 2
@@ -198,21 +217,54 @@ function setSrc(str){
 // Event listener on view recipe button for a modal to show up on click
 function page2(chosenMeal, btn, mealName, mealImg){
 const videoEmbed = document.getElementById("video")
-let videoUrl;
 const page1 = document.getElementById("page-1")
 const page2 = document.getElementById("page-2")
 const title = document.getElementById("2-page-title")
 const backBtn = document.getElementById("back-btn")
 const image = document.getElementById('page-2-img')
-  btn.addEventListener("click", () => {
-    // console.log(chosenMeal[strMeal])
-    // console.log(mealName)
+  btn.addEventListener("click", async () => {
     title.innerText = mealName;
-    image.src =mealImg
+    image.src = mealImg
     let urlString=chosenMeal.strYoutube;
     let url= urlString.replace('watch?v=','embed/', urlString);
+    let videoID = urlString.split('watch?v=')[1]
+    console.log(videoID);
+    let apiKey = "AIzaSyBp-Du1cFivdHJvLNk7j_sHZw6_Rwq_UIM"
+    let videoDataURL = `https://youtube.googleapis.com/youtube/v3/videos?part=status%2CcontentDetails&id=${videoID}&key=${apiKey}`
+    let resp = await fetch(videoDataURL)
+    let data = await resp.json()
+    console.log("Getting recipe API video data: ", data)
+    let isEmbeddable, isPublic, shouldUseOtherVideo;
+    if (data.items.length <1) {
+      shouldUseOtherVideo = true
+    } else {
+      isEmbeddable = data.items[0].status ? data.items[0].status.embeddable : false
+      isPublic = data.items.length < 1 || data.items[0].status ? data.items[0].status.privacyStatus == "public" : false
+      shouldUseOtherVideo = isPublic == false || isEmbeddable == false
+    }
+    console.log(`Should I use another video?: ${shouldUseOtherVideo}`)
+    if (shouldUseOtherVideo) {
+      async function searchYoutube(searchString, key) {
+        console.log("Meal name is: ", searchString)
+        let searchVideoURL= `https://youtube.googleapis.com/youtube/v3/search?part=snippet&q=${searchString}&maxResults=5&key=${key}`
+        let searchResp = await fetch(searchVideoURL)
+        console.log("Searching Youtube")
+        let searchData = await searchResp.json()
+        console.log(searchData)
+        return searchData.items
+      }
+      let searchResults = await searchYoutube(mealName, apiKey)
+      console.log("search results: ", searchResults)
+      let newVideoData = searchResults[0]
+      console.log("new video data: ", newVideoData)
+      let newVideoID = newVideoData.id.videoId
+      console.log("new video ID is: ", newVideoID)
+      let youtubeEmbedURLPrefix = "https://www.youtube.com/embed/"
+      console.log("Hard-coding video to embeddable public video")
+      url = newVideoID.length > 1? `${youtubeEmbedURLPrefix}${newVideoID}` : `${youtubeEmbedURLPrefix}PFwc8BfSvCw`
+    }
+    console.log(`Video URL is: ${url}`)
     videoEmbed.src = url;
-    // console.log(videoUrl)
     getIngredients(chosenMeal)
     getInstructions(chosenMeal)
     setSrc(chosenMeal.strCategory);
